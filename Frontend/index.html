@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProofLens AI | Verified Reasoning</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
+        body { font-family: 'Inter', sans-serif; background-color: #f8fafc; }
+        .step-card { transition: all 0.3s ease; }
+        .step-card:hover { transform: translateY(-2px); }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <!-- Navbar -->
+    <nav class="bg-white border-b border-slate-200 py-4 px-8 flex justify-between items-center sticky top-0 z-50">
+        <div class="flex items-center gap-2">
+            <div class="bg-blue-600 p-2 rounded-lg text-white">
+                <i class="fa-solid fa-microchip text-xl"></i>
+            </div>
+            <h1 class="text-xl font-bold tracking-tight">ProofLens <span class="text-blue-600">AI</span></h1>
+        </div>
+        <div class="text-sm font-medium text-slate-500 italic">V1.0 • Verified Logic Engine</div>
+    </nav>
+
+    <main class="max-w-4xl mx-auto py-12 px-6">
+        <!-- Input Section -->
+        <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-8 mb-8">
+            <label class="block text-sm font-semibold text-slate-600 mb-2 uppercase tracking-wider">Mathematical Equation</label>
+            <div class="flex gap-4">
+                <input type="text" id="problemInput" placeholder="e.g. 5*x - 20 = 30" 
+                       class="flex-1 bg-slate-50 border border-slate-200 rounded-xl px-5 py-4 focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-lg">
+                <button onclick="solveProblem()" id="solveBtn" 
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold px-8 py-4 rounded-xl transition-all flex items-center gap-3">
+                    <span>Solve</span>
+                    <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Loading State -->
+        <div id="loader" class="hidden text-center py-12">
+            <div class="inline-block animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mb-4"></div>
+            <p class="text-slate-500 font-medium">AI is generating verified steps...</p>
+        </div>
+
+        <!-- Result Container -->
+        <div id="results" class="space-y-6">
+            <!-- Steps will be injected here -->
+        </div>
+
+        <!-- Final Banner -->
+        <div id="finalBanner" class="hidden mt-12 p-6 rounded-2xl text-center bg-emerald-50 border border-emerald-200 text-emerald-800">
+            <i class="fa-solid fa-circle-check text-3xl mb-2"></i>
+            <h2 id="finalResultText" class="text-2xl font-bold"></h2>
+            <p class="text-emerald-600">All steps have been symbolically verified.</p>
+        </div>
+    </main>
+
+    <script>
+        async function solveProblem() {
+            const problem = document.getElementById('problemInput').value;
+            const resultsDiv = document.getElementById('results');
+            const loader = document.getElementById('loader');
+            const solveBtn = document.getElementById('solveBtn');
+            const banner = document.getElementById('finalBanner');
+
+            if (!problem) return alert("Please enter a problem.");
+
+            // Reset UI
+            resultsDiv.innerHTML = '';
+            banner.classList.add('hidden');
+            loader.classList.remove('hidden');
+            solveBtn.disabled = true;
+            solveBtn.classList.add('opacity-50');
+
+            try {
+                const response = await axios.post('http://127.0.0.1:8000/solve', { problem });
+                const data = response.data;
+                
+                loader.classList.add('hidden');
+                solveBtn.disabled = false;
+                solveBtn.classList.remove('opacity-50');
+
+                data.steps.forEach((step, index) => {
+                    const card = document.createElement('div');
+                    card.className = `step-card p-6 rounded-2xl border ${step.verified ? 'bg-white border-slate-200' : 'bg-red-50 border-red-100'} shadow-sm`;
+                    
+                    card.innerHTML = `
+                        <div class="flex items-start justify-between">
+                            <div class="flex-1">
+                                <span class="text-xs font-bold text-slate-400 uppercase tracking-widest">Step ${index + 1}</span>
+                                <div class="text-xl font-mono mt-1 text-slate-800">${step.cleaned_math}</div>
+                                ${!step.verified ? `<p class="mt-2 text-sm text-red-600 font-medium"><i class="fa-solid fa-circle-exclamation mr-1"></i> ${step.error_message}</p>` : ''}
+                            </div>
+                            <div class="${step.verified ? 'text-emerald-500' : 'text-red-500'}">
+                                <i class="fa-solid ${step.verified ? 'fa-circle-check' : 'fa-circle-xmark'} text-2xl"></i>
+                            </div>
+                        </div>
+                    `;
+                    resultsDiv.appendChild(card);
+                });
+
+                if (data.is_verified) {
+                    banner.classList.remove('hidden');
+                    document.getElementById('finalResultText').innerText = `Final Answer: ${data.steps[data.steps.length - 1].cleaned_math}`;
+                }
+
+            } catch (error) {
+                loader.classList.add('hidden');
+                solveBtn.disabled = false;
+                alert("Error connecting to server. Is the backend running?");
+            }
+        }
+    </script>
+</body>
+</html>
